@@ -13,6 +13,7 @@ class MemorySimulator:
         self.rep_policy = rep_policy # Politica de substituicao de paginas (LRU ou SecondChance)
 
         self.lru_frames = []
+        self.bit = {} #mapeia pg: bit (0 ou 1)
 
         if rep_policy not in ['LRU', 'SecondChance']:
             raise ValueError("Política de substituição inválida. Use 'LRU' ou 'SecondChance'.")
@@ -44,16 +45,22 @@ class MemorySimulator:
                 pg_tlb, frame_tlb = self.tlb.pop(i)
                 self.tlb.append((pg_tlb, frame_tlb)) 
                 end_fisico = self.calcula_end_fisico(virtual_address, frame_tlb)
-                self.lru_frames.remove(pg)
-                self.lru_frames.append(pg)
+                if self.rep_policy == "LRU":
+                    self.lru_frames.remove(pg)
+                    self.lru_frames.append(pg)
+                else:
+                    self.bit[pg] = 1
                 return end_fisico #conferir se calculo do end fisico está correto
 
         self.tlb_misses += 1  # se chegou aqui é pq a pg n está na TLB
 
         if pg in self.page_table: # pg está na tabela de paginas
             end_fisico = self.calcula_end_fisico(virtual_address, self.page_table[pg])
-            self.lru_frames.remove(pg)
-            self.lru_frames.append(pg)
+            if self.rep_policy == "LRU":
+                self.lru_frames.remove(pg)
+                self.lru_frames.append(pg)
+            else:
+                self.bit[pg] = 1
         else:
             self.page_faults += 1 #se não está na tabela de pgs ocorre um page fault
             self.alocacao_frame(pg)
@@ -87,6 +94,7 @@ class MemorySimulator:
                 self.frames[i] = pg 
                 self.page_table[pg] = i
                 self.lru_frames.append(pg)
+                self.bit[pg] = 1
                 return 
 
         #se chegar aqui é pq n tem frame livre
@@ -107,6 +115,9 @@ class MemorySimulator:
         self.frames[frame_remover] = pg
         self.page_table[pg] = frame_remover
         self.lru_frames.append(pg)
+        if (pg_remover, frame_remover) in self.tlb:
+            self.tlb.remove((pg_remover, frame_remover))
+        return
 
         
 
@@ -114,6 +125,25 @@ class MemorySimulator:
         """
         Algoritmo SecondChance
         """
+        while True:
+            primeira_pg = self.lru_frames[0]
+            if self.bit[primeira_pg] == 1:
+                self.bit[primeira_pg] = 0
+                self.lru_frames.pop(0)
+                self.lru_frames.append(primeira_pg)
+            else:
+                pg_remover = self.lru_frames.pop(0)
+                frame_remover = self.page_table.pop(pg_remover)
+                self.frames[frame_remover] = pg
+                self.page_table[pg] = frame_remover
+                self.lru_frames.append(pg)
+                self.bit.pop(pg_remover)
+                self.bit[pg] = 1
+                if (pg_remover, frame_remover) in self.tlb:
+                    self.tlb.remove((pg_remover, frame_remover))
+                return
+            
+            
 
 
     def print_statistics(self):
