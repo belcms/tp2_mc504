@@ -1,10 +1,5 @@
 import collections
 
-
-# funcionamento TBL e memoria virtual com substituicao de paginas
-# metodos de substituicao: LRU e SecondChance
-
-
 class MemorySimulator:
     def __init__(self, page_size, num_tlb_entries, num_frames, rep_policy):
         self.page_size = page_size # tam pag em bytes; pot 2
@@ -24,11 +19,8 @@ class MemorySimulator:
 
         # contadores de estatisticas
         self.tlb_hits = 0 # num acertos TLB
-        self.tlb_misses = 0 # num faltas TLB --> valor eh carregado na TLB para que o prox acesso seja mais rapido
-        self.page_faults = 0 # num page faults -> n ta no frame
-
-# Observacao: A politica de substituicao da TLB eh obrigatoriamente LRU. 
-# O parametro rep_policy eh apenas para substituicao em caso de tratamento de page fault. Alem disso, assuma que todos os enderecos de entrada pertencem ao espaco de enderecamento do processo.
+        self.tlb_misses = 0 # num faltas TLB --> valor é carregado na TLB para que o prox acesso seja mais rapido
+        self.page_faults = 0 # num page faults 
 
 
     def access_memory(self, virtual_address):
@@ -50,7 +42,7 @@ class MemorySimulator:
                     self.lru_frames.append(pg)
                 else:
                     self.bit[pg] = 1
-                return end_fisico #conferir se calculo do end fisico está correto
+                return end_fisico 
 
         self.tlb_misses += 1  # se chegou aqui é pq a pg n está na TLB
 
@@ -70,7 +62,10 @@ class MemorySimulator:
             
 
     def calcula_end_fisico(self, virtual_address, frame):
-        # confirmar: pega o virtual adress, divide pelo page_size, acha a pg, ai acessa TLB, se n tiver LRU na TLB
+        """
+        Calcula o endereço físico a partir do endereço virtual e do frame correspondente.
+        """
+        
         deslocamento = virtual_address % self.page_size
         end_fisico = frame * self.page_size + deslocamento
         return end_fisico
@@ -78,7 +73,7 @@ class MemorySimulator:
 
     def insercao_tlb(self, pg, frame):
         """
-        Insercao na TLB, removendo o mais antigo se não houver mais espaço
+        Insere o par (página, frame) na TLB, removendo a entrada mais antiga (LRU) se estiver cheia.
         """
         if len(self.tlb) == self.num_tlb_entries:
             self.tlb.pop(0)
@@ -87,7 +82,7 @@ class MemorySimulator:
 
     def alocacao_frame(self, pg):
         """
-        Alocacao de frame
+        Aloca um frame livre na memória física para a página ou chama a política de substituição se estiver cheia.
         """
         for i in range(self.num_frames):
             if self.frames[i] == None: #encontrou frame livre
@@ -108,7 +103,7 @@ class MemorySimulator:
         # LRU: Least Recently Used; subtituir a pg q n eh usada ha mais tempo
         # considerando que o mais antigo vai estar posicionado na posicao 0, remove da posicao 0 e adiciona o novo frame no final
         """
-        Algoritmo LRU
+        Substitui a página menos recentemente usada na memória física pela nova página.
         """
         pg_remover = self.lru_frames.pop(0)
         frame_remover = self.page_table.pop(pg_remover)
@@ -119,11 +114,10 @@ class MemorySimulator:
             self.tlb.remove((pg_remover, frame_remover))
         return
 
-        
 
     def SecondChance(self, pg):
         """
-        Algoritmo SecondChance
+        Substitui uma página na memória física usando o algoritmo Segunda Chance (bit de referência).
         """
         while True:
             primeira_pg = self.lru_frames[0]
@@ -144,7 +138,6 @@ class MemorySimulator:
                 return
             
             
-
 
     def print_statistics(self):
         print("=" * 60)
